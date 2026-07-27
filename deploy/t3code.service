@@ -1,0 +1,23 @@
+[Unit]
+Description=T3 Code production server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/yuri/Projects
+Environment=HOME=/home/yuri
+Environment=T3CODE_HOME=/home/yuri/.t3code-production
+Environment=PATH=/home/yuri/.vite-plus/bin:/home/yuri/.npm-global/bin:/home/yuri/.bun/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/yuri/.vite-plus/bin/node /opt/t3code/current/apps/server/dist/bin.mjs serve --host 0.0.0.0 --port 3774 --base-dir /home/yuri/.t3code-production --no-browser /home/yuri/Projects
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

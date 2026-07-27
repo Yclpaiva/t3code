@@ -1,0 +1,103 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - prod
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t3code-production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify production build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: |
+            args:
+              - --filter=t3...
+              - --filter=@t3tools/web...
+              - --filter=@t3tools/scripts...
+
+      - name: Validate deployment script
+        run: bash -n deploy/deploy.sh
+
+      - name: Typecheck server
+        run: vp run --filter t3 typecheck
+
+      - name: Test server
+        run: vp run --filter t3 test
+
+      - name: Build production server
+        run: vp run --filter t3 build
+
+      - name: Verify build output
+        run: |
+          test -f apps/server/dist/bin.mjs
+          test -f apps/server/dist/client/index.html
+
+  deploy:
+    name: Deploy to VPS
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://t3code.yclpaiva.dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST_KEYS: ${{ secrets.DEPLOY_HOST_KEYS }}
+        run: |
+          install -d -m 0700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 0600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_HOST_KEYS" > ~/.ssh/known_hosts
+          chmod 0600 ~/.ssh/known_hosts
+
+      - name: Install deployment files
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          remote_staging=".t3code-deploy-${GITHUB_SHA}"
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "install -d -m 0700 '$remote_staging'"
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            deploy/deploy.sh deploy/t3code.service \
+            "$DEPLOY_USER@$DEPLOY_HOST:$remote_staging/"
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "install -m 0755 '$remote_staging/deploy.sh' /opt/t3code/deploy.sh && \
+             install -m 0644 '$remote_staging/t3code.service' ~/.config/systemd/user/t3code.service && \
+             rm -rf '$remote_staging' && \
+             systemctl --user daemon-reload && \
+             systemctl --user enable t3code.service"
+
+      - name: Deploy production commit
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "/opt/t3code/deploy.sh '$GITHUB_SHA'"
+
+      - name: Verify public endpoint
+        run: curl --fail --silent --show-error --retry 10 --retry-delay 3 https://t3code.yclpaiva.dev/ >/dev/null
