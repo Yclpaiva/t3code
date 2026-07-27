@@ -66,6 +66,7 @@ if ! systemctl --user restart "$service_name"; then
 fi
 
 if ! curl --fail --silent --show-error \
+  --connect-timeout 2 --max-time 10 \
   --retry 15 --retry-delay 2 --retry-connrefused \
   "$health_url" >/dev/null; then
   echo "health check failed after deploying $sha; rolling back" >&2
