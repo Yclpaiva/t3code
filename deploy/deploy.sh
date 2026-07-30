@@ -10,7 +10,7 @@ sha="$1"
 deploy_root="${T3CODE_DEPLOY_ROOT:-/opt/t3code}"
 repository_url="${T3CODE_REPOSITORY_URL:-https://github.com/Yclpaiva/t3code.git}"
 deploy_branch="${T3CODE_DEPLOY_BRANCH:-prod}"
-service_name="${T3CODE_SERVICE_NAME:-t3code.service}"
+service_name="${T3CODE_SERVICE_NAME:-t3code-prod.service}"
 health_url="${T3CODE_HEALTH_URL:-http://127.0.0.1:3774/}"
 repo_dir="$deploy_root/repository"
 releases_dir="$deploy_root/releases"
@@ -43,6 +43,9 @@ if [[ ! -f "$release_dir/.t3code-build-complete" ]]; then
   (
     cd "$release_dir"
     export PATH="$HOME/.vite-plus/bin:$PATH"
+    export T3CODE_RELAY_URL="https://relay.t3.codes"
+    export T3CODE_CLERK_PUBLISHABLE_KEY="pk_live_Y2xlcmsudDMuY29kZXMk"
+    export T3CODE_CLERK_CLI_OAUTH_CLIENT_ID="hzxSgY2cH10sDU2r"
     vp install --frozen-lockfile
     vp run --filter t3 build
     test -f apps/server/dist/bin.mjs
