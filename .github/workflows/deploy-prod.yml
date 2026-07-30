@@ -15,6 +15,10 @@ concurrency:
 
 jobs:
   verify:
+    env:
+      T3CODE_RELAY_URL: https://relay.t3.codes
+      T3CODE_CLERK_PUBLISHABLE_KEY: pk_live_Y2xlcmsudDMuY29kZXMk
+      T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: hzxSgY2cH10sDU2r
     name: Verify production build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -78,14 +82,14 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" \
             "install -d -m 0700 '$remote_staging'"
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
-            deploy/deploy.sh deploy/t3code.service \
+            deploy/deploy.sh deploy/t3code-prod.service \
             "$DEPLOY_USER@$DEPLOY_HOST:$remote_staging/"
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" \
             "install -m 0755 '$remote_staging/deploy.sh' /opt/t3code/deploy.sh && \
-             install -m 0644 '$remote_staging/t3code.service' ~/.config/systemd/user/t3code.service && \
+             install -m 0644 '$remote_staging/t3code-prod.service' ~/.config/systemd/user/t3code-prod.service && \
              rm -rf '$remote_staging' && \
              systemctl --user daemon-reload && \
-             systemctl --user enable t3code.service"
+             systemctl --user enable t3code-prod.service"
 
       - name: Deploy production commit
         env:
