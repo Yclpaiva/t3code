@@ -33,8 +33,10 @@ jobs:
           cache: true
           run-install: true
 
-      - name: Validate deployment script
-        run: bash -n deploy/deploy.sh
+      - name: Validate deployment tools
+        run: |
+          bash -n deploy/deploy.sh deploy/t3prod deploy/t3prod.test.sh
+          bash deploy/t3prod.test.sh
 
       - name: Typecheck server
         run: vp run --filter t3 typecheck
@@ -82,11 +84,13 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" \
             "install -d -m 0700 '$remote_staging'"
           scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
-            deploy/deploy.sh deploy/t3code-prod.service \
+            deploy/deploy.sh deploy/t3code-prod.service deploy/t3prod \
             "$DEPLOY_USER@$DEPLOY_HOST:$remote_staging/"
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" \
             "install -m 0755 '$remote_staging/deploy.sh' /opt/t3code/deploy.sh && \
              install -m 0644 '$remote_staging/t3code-prod.service' ~/.config/systemd/user/t3code-prod.service && \
+             install -d -m 0755 ~/.local/bin && \
+             install -m 0755 '$remote_staging/t3prod' ~/.local/bin/t3prod && \
              rm -rf '$remote_staging' && \
              systemctl --user daemon-reload && \
              systemctl --user enable t3code-prod.service"

@@ -14,3 +14,19 @@ Required GitHub Actions secrets:
 - `DEPLOY_HOST_KEYS`: pinned `known_hosts` line for the VPS.
 
 Runtime state is persisted in `/home/yuri/.t3code-production`; source releases are disposable.
+
+## Production CLI
+
+Use `t3prod` instead of `npx t3` when managing the deployed environment. The wrapper always targets
+the production T3 home and blocks built-in service operations, because those operations own
+`t3code.service` while this deployment is intentionally managed as `t3code-prod.service`.
+
+```bash
+t3prod connect status
+t3prod connect login --headless
+t3prod connect link
+systemctl --user restart t3code-prod.service
+```
+
+Do not run the combined `npx t3 connect` onboarding or `npx t3 service update` for this deployment.
+Update the fork from upstream, push `prod`, and let the production workflow perform the rollout.
