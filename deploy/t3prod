@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+node_path="${T3PROD_NODE:-/home/yuri/.vite-plus/bin/node}"
+entry_path="${T3PROD_ENTRY:-/opt/t3code/current/apps/server/dist/bin.mjs}"
+systemctl_command="${T3PROD_SYSTEMCTL:-systemctl}"
+
+export HOME="/home/yuri"
+export T3CODE_HOME="/home/yuri/.t3code-production"
+export T3CODE_RELAY_URL="https://relay.t3.codes"
+export T3CODE_CLERK_PUBLISHABLE_KEY="pk_live_Y2xlcmsudDMuY29kZXMk"
+export T3CODE_CLERK_CLI_OAUTH_CLIENT_ID="hzxSgY2cH10sDU2r"
+
+if [[ "${1:-}" == "service" ]]; then
+  if [[ "${2:-}" == "status" ]]; then
+    exec "$systemctl_command" --user status t3code-prod.service --no-pager
+  fi
+
+  cat >&2 <<'EOF'
+O serviço de produção é gerenciado pelo CI/CD da branch prod.
+Não use `t3 service install`, `update` ou `uninstall` nesta VPS.
+EOF
+  exit 2
+fi
+
+if [[ "${1:-}" == "connect" ]]; then
+  connect_subcommand=""
+  for argument in "${@:2}"; do
+    case "$argument" in
+      login|link|publish|status|unlink|logout)
+        connect_subcommand="$argument"
+        break
+        ;;
+    esac
+  done
+
+  if [[ -z "$connect_subcommand" ]]; then
+    cat >&2 <<'EOF'
+O onboarding combinado tenta instalar `t3code.service` e conflita com o deploy da VPS.
+Use os comandos seguros abaixo; ambos operam no ambiente de produção:
+
+  t3prod connect login --headless
+  t3prod connect link
+
+Depois, reinicie com:
+
+  systemctl --user restart t3code-prod.service
+EOF
+    exit 2
+  fi
+fi
+
+if [[ ! -f "$entry_path" ]]; then
+  echo "T3 Code de produção não encontrado em $entry_path" >&2
+  exit 1
+fi
+
+exec "$node_path" "$entry_path" "$@"
