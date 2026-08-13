@@ -29,4 +29,5 @@ systemctl --user restart t3code-prod.service
 ```
 
 Do not run the combined `npx t3 connect` onboarding or `npx t3 service update` for this deployment.
+The systemd unit PATH must keep `~/.opencode/bin` and `~/.local/bin` so production providers stay on PATH after CI recopies the unit.
 Update the fork from upstream, push `prod`, and let the production workflow perform the rollout.
