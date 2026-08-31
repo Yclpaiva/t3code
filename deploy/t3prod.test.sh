@@ -46,6 +46,11 @@ fi
 grep -Fq 't3prod connect login' <<<"$output"
 grep -Fq 't3prod connect link' <<<"$output"
 
+grep -Fq 'with-env' "$script_dir/t3code-prod.service"
+grep -Fq 'ExecStart=/home/yuri/.local/share/agent-kit/src/scripts/with-env' "$script_dir/t3code-prod.service"
+grep -Fq 'Environment=T3CODE_HOSTED_APP_URL=https://t3code.yclpaiva.dev' "$script_dir/t3code-prod.service"
+grep -Fq 'export T3CODE_HOSTED_APP_URL="https://t3code.yclpaiva.dev"' "$script_dir/deploy.sh"
+
 if output="$(run_wrapper service update 2>&1)"; then
   echo 'expected service update to be rejected' >&2
   exit 1

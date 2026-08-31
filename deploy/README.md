@@ -30,4 +30,6 @@ systemctl --user restart t3code-prod.service
 
 Do not run the combined `npx t3 connect` onboarding or `npx t3 service update` for this deployment.
 The systemd unit PATH must keep `~/.opencode/bin` and `~/.local/bin` so production providers stay on PATH after CI recopies the unit.
+`ExecStart` runs through `~/.local/share/agent-kit/src/scripts/with-env` so OpenCode inherits the same API keys as an interactive shell (`OPENCODE_API_KEY` and the rest of `env.d`).
+The production web bundle is hosted at `https://t3code.yclpaiva.dev` and uses that origin for T3 Connect sign-in and discovery. The Clerk OAuth application must allow `https://t3code.yclpaiva.dev/connect/callback` in addition to the loopback callback used by local CLI login.
 Update the fork from upstream, push `prod`, and let the production workflow perform the rollout.

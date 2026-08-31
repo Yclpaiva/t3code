@@ -46,6 +46,7 @@ if [[ ! -f "$release_dir/.t3code-build-complete" ]]; then
     export T3CODE_RELAY_URL="https://relay.t3.codes"
     export T3CODE_CLERK_PUBLISHABLE_KEY="pk_live_Y2xlcmsudDMuY29kZXMk"
     export T3CODE_CLERK_CLI_OAUTH_CLIENT_ID="hzxSgY2cH10sDU2r"
+    export T3CODE_HOSTED_APP_URL="https://t3code.yclpaiva.dev"
     vp install --frozen-lockfile
     vp run --filter t3 build
     test -f apps/server/dist/bin.mjs
