@@ -67,8 +67,8 @@ it.layer(NodeServices.layer)("opencodeInventoryEpoch", (it) => {
 
   describe("readOpenCodeInventoryEpoch", () => {
     it.effect("changes when auth.json or the OpenCode binary mtime changes", () => {
-      const authTime = new Date("2026-08-29T02:00:00.000Z");
-      const binaryTime = new Date("2026-08-29T02:01:00.000Z");
+      const authTime = 1_777_000_000_000;
+      const binaryTime = authTime + 60_000;
       return Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "opencode-epoch-" });

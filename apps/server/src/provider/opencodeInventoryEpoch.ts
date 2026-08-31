@@ -122,7 +122,7 @@ export function makeOpenCodeSnapshotSettingsSource(
   >;
   readonly streamSettings: Stream.Stream<
     OpenCodeSnapshotSettings,
-    ServerSettingsError,
+    never,
     FileSystem.FileSystem | Path.Path
   >;
 } {
@@ -161,8 +161,14 @@ export function makeOpenCodeSnapshotSettingsSource(
         Stream.mapEffect((inventoryEpoch) =>
           serverSettings.getSettings.pipe(
             Effect.map((settings) => withEpoch(settings, inventoryEpoch)),
+            Effect.catchAll((cause) =>
+              Effect.logWarning("Could not read server settings for the OpenCode inventory poll.", {
+                cause,
+              }).pipe(Effect.as(undefined)),
+            ),
           ),
         ),
+        Stream.filter((settings): settings is OpenCodeSnapshotSettings => settings !== undefined),
       ),
     ),
   };
