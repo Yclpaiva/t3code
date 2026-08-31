@@ -2,6 +2,7 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+workflow="$script_dir/../.github/workflows/deploy-prod.yml"
 wrapper="$script_dir/t3prod"
 temp_dir="$(mktemp -d)"
 trap 'rm -rf "$temp_dir"' EXIT
@@ -49,7 +50,9 @@ grep -Fq 't3prod connect link' <<<"$output"
 grep -Fq 'with-env' "$script_dir/t3code-prod.service"
 grep -Fq 'ExecStart=/home/yuri/.local/share/agent-kit/src/scripts/with-env' "$script_dir/t3code-prod.service"
 grep -Fq 'Environment=T3CODE_HOSTED_APP_URL=https://t3code.yclpaiva.dev' "$script_dir/t3code-prod.service"
+grep -Fq 'export T3CODE_CLERK_JWT_TEMPLATE="t3-relay"' "$script_dir/deploy.sh"
 grep -Fq 'export T3CODE_HOSTED_APP_URL="https://t3code.yclpaiva.dev"' "$script_dir/deploy.sh"
+grep -Fq 'T3CODE_CLERK_JWT_TEMPLATE: t3-relay' "$workflow"
 
 if output="$(run_wrapper service update 2>&1)"; then
   echo 'expected service update to be rejected' >&2
