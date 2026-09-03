@@ -15,6 +15,7 @@ import { OpenCodeSettings } from "@t3tools/contracts";
 import {
   haveOpenCodeSnapshotSettingsChanged,
   openCodeAuthJsonPath,
+  openCodeModelsCachePath,
   readOpenCodeInventoryEpoch,
 } from "./opencodeInventoryEpoch.ts";
 
@@ -45,6 +46,17 @@ it.layer(NodeServices.layer)("opencodeInventoryEpoch", (it) => {
         "/home/yuri/.local/share/opencode/auth.json",
       );
     });
+
+    it("resolves the OpenCode models cache through XDG_CACHE_HOME", () => {
+      NodeAssert.equal(
+        openCodeModelsCachePath({ XDG_CACHE_HOME: "/xdg/cache", HOME: "/home/yuri" }),
+        "/xdg/cache/opencode/models.json",
+      );
+      NodeAssert.equal(
+        openCodeModelsCachePath({ HOME: "/home/yuri" }),
+        "/home/yuri/.cache/opencode/models.json",
+      );
+    });
   });
 
   describe("haveOpenCodeSnapshotSettingsChanged", () => {
@@ -66,26 +78,33 @@ it.layer(NodeServices.layer)("opencodeInventoryEpoch", (it) => {
   });
 
   describe("readOpenCodeInventoryEpoch", () => {
-    it.effect("changes when auth.json or the OpenCode binary mtime changes", () => {
+    it.effect("changes when auth, model cache, or the OpenCode binary mtime changes", () => {
       const authTime = 1_777_000_000_000;
-      const binaryTime = authTime + 60_000;
+      const modelsTime = authTime + 60_000;
+      const binaryTime = modelsTime + 60_000;
       return Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "opencode-epoch-" });
         const binDir = NodePath.join(tempDir, "bin");
         const dataDir = NodePath.join(tempDir, "share");
+        const cacheDir = NodePath.join(tempDir, "cache");
         const authDir = NodePath.join(dataDir, "opencode");
+        const modelsDir = NodePath.join(cacheDir, "opencode");
         NodeFS.mkdirSync(binDir, { recursive: true });
         NodeFS.mkdirSync(authDir, { recursive: true });
+        NodeFS.mkdirSync(modelsDir, { recursive: true });
         const binaryPath = NodePath.join(binDir, "opencode");
         const authPath = NodePath.join(authDir, "auth.json");
+        const modelsPath = NodePath.join(modelsDir, "models.json");
         NodeFS.writeFileSync(binaryPath, "#!/bin/sh\n");
         NodeFS.chmodSync(binaryPath, 0o755);
         NodeFS.writeFileSync(authPath, "{}\n");
+        NodeFS.writeFileSync(modelsPath, "{}\n");
 
         const env = {
           HOME: NodeOS.homedir(),
           XDG_DATA_HOME: dataDir,
+          XDG_CACHE_HOME: cacheDir,
           PATH: binDir,
         };
         const first = yield* readOpenCodeInventoryEpoch({
@@ -99,12 +118,19 @@ it.layer(NodeServices.layer)("opencodeInventoryEpoch", (it) => {
         });
         NodeAssert.notEqual(first, afterAuth);
 
+        NodeFS.utimesSync(modelsPath, modelsTime, modelsTime);
+        const afterModels = yield* readOpenCodeInventoryEpoch({
+          binaryPath: "opencode",
+          environment: env,
+        });
+        NodeAssert.notEqual(afterAuth, afterModels);
+
         NodeFS.utimesSync(binaryPath, binaryTime, binaryTime);
         const afterBinary = yield* readOpenCodeInventoryEpoch({
           binaryPath: "opencode",
           environment: env,
         });
-        NodeAssert.notEqual(afterAuth, afterBinary);
+        NodeAssert.notEqual(afterModels, afterBinary);
       });
     });
   });

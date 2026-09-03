@@ -53,6 +53,22 @@ export function openCodeAuthJsonPath(env: NodeJS.ProcessEnv): string | null {
   return `${home.replace(/\/+$/, "")}/.local/share/opencode/auth.json`;
 }
 
+export function openCodeModelsCachePath(env: NodeJS.ProcessEnv): string | null {
+  const explicit = env.OPENCODE_MODELS_PATH?.trim();
+  if (explicit) {
+    return explicit;
+  }
+  const xdgCache = env.XDG_CACHE_HOME?.trim();
+  const cacheRoot = xdgCache || env.HOME?.trim() || env.USERPROFILE?.trim();
+  if (!cacheRoot) {
+    return null;
+  }
+  const normalized = cacheRoot.replace(/\/+$/, "");
+  return xdgCache
+    ? `${normalized}/opencode/models.json`
+    : `${normalized}/.cache/opencode/models.json`;
+}
+
 function splitPathValue(env: NodeJS.ProcessEnv): ReadonlyArray<string> {
   const raw = env.PATH ?? env.Path ?? env.path ?? "";
   const delimiter = raw.includes(";") && !raw.includes(":") ? ";" : ":";
@@ -96,17 +112,22 @@ function resolveOpenCodeBinaryPath(
 
 /**
  * Identity of the OpenCode catalog inputs T3 can observe without spawning CLI.
- * Does not include secret values, only mtimes of auth.json and the resolved binary.
+ * Does not include secret values, only mtimes of auth.json, the model cache,
+ * and the resolved binary.
  */
 export const readOpenCodeInventoryEpoch = Effect.fn("readOpenCodeInventoryEpoch")(
   function* (input: { readonly binaryPath: string; readonly environment?: NodeJS.ProcessEnv }) {
     const env = input.environment ?? process.env;
     const resolvedBinary = yield* resolveOpenCodeBinaryPath(input.binaryPath, env);
-    const [authMtimeMs, binaryMtimeMs] = yield* Effect.all(
-      [fileMtimeMs(openCodeAuthJsonPath(env)), fileMtimeMs(resolvedBinary)],
+    const [authMtimeMs, modelsMtimeMs, binaryMtimeMs] = yield* Effect.all(
+      [
+        fileMtimeMs(openCodeAuthJsonPath(env)),
+        fileMtimeMs(openCodeModelsCachePath(env)),
+        fileMtimeMs(resolvedBinary),
+      ],
       { concurrency: "unbounded" },
     );
-    return `auth:${authMtimeMs}|bin:${binaryMtimeMs}`;
+    return `auth:${authMtimeMs}|models:${modelsMtimeMs}|bin:${binaryMtimeMs}`;
   },
 );
 
