@@ -37,6 +37,9 @@ grep -Fq 'HOME=/home/yuri/.t3code-production' <<<"$output"
 grep -Fq 'RELAY=https://relay.t3.codes' <<<"$output"
 grep -Fq "ARGS=$temp_dir/bin.mjs connect status" <<<"$output"
 
+output="$(run_wrapper connect environments --json)"
+grep -Fq "ARGS=$temp_dir/bin.mjs connect environments --json" <<<"$output"
+
 output="$(run_wrapper service status)"
 grep -Fq 'SYSTEMCTL=--user status t3code-prod.service --no-pager' <<<"$output"
 

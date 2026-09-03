@@ -1,4 +1,5 @@
 import * as RelayClient from "@t3tools/shared/relayClient";
+import { EnvironmentId } from "@t3tools/contracts";
 import { assert, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as ConfigProvider from "effect/ConfigProvider";
@@ -13,6 +14,7 @@ import * as Terminal from "effect/Terminal";
 import * as BootService from "../cloud/bootService.ts";
 import {
   acquireRelayClientForLink,
+  formatCloudEnvironments,
   formatHeadlessAuthorizationPrompt,
   formatRelayClientReady,
   headlessSessionConfig,
@@ -36,6 +38,40 @@ it("explains how to complete headless authorization", () => {
 
 it("formats relay readiness without printing its installation path", () => {
   assert.equal(formatRelayClientReady("2026.5.2"), "✓ Relay client ready · cloudflared 2026.5.2");
+});
+
+it("formats linked environments without exposing authorization credentials", () => {
+  const output = formatCloudEnvironments(
+    [
+      {
+        environmentId: EnvironmentId.make("env_macbook"),
+        label: "MacBook Air",
+        endpoint: {
+          httpBaseUrl: "https://env-macbook.example.test/",
+          wsBaseUrl: "wss://env-macbook.example.test/ws",
+          providerKind: "cloudflare_tunnel",
+        },
+        linkedAt: "2026-08-31T10:00:00.000Z",
+      },
+    ],
+    { json: true },
+  );
+  assert.deepEqual(JSON.parse(output), {
+    environments: [
+      {
+        environmentId: "env_macbook",
+        label: "MacBook Air",
+        endpoint: {
+          httpBaseUrl: "https://env-macbook.example.test/",
+          wsBaseUrl: "wss://env-macbook.example.test/ws",
+          providerKind: "cloudflare_tunnel",
+        },
+        linkedAt: "2026-08-31T10:00:00.000Z",
+      },
+    ],
+  });
+  assert.notInclude(output.toLowerCase(), "authorization");
+  assert.notInclude(output.toLowerCase(), "token");
 });
 
 const readHeadlessSessionConfig = (env: Record<string, string>) =>

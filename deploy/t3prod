@@ -27,7 +27,7 @@ if [[ "${1:-}" == "connect" ]]; then
   connect_subcommand=""
   for argument in "${@:2}"; do
     case "$argument" in
-      login|link|publish|status|unlink|logout)
+      login|link|publish|status|environments|unlink|logout)
         connect_subcommand="$argument"
         break
         ;;

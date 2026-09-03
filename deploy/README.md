@@ -24,9 +24,14 @@ the production T3 home and blocks built-in service operations, because those ope
 ```bash
 t3prod connect status
 t3prod connect login --headless
+t3prod connect environments --json
 t3prod connect link
 systemctl --user restart t3code-prod.service
 ```
+
+`connect environments` lists the labels, ids, and relay endpoints linked to the
+authenticated account. It does not print OAuth credentials or environment access tokens.
+Run `connect login --headless` again when the stored Clerk credential can no longer refresh.
 
 Do not run the combined `npx t3 connect` onboarding or `npx t3 service update` for this deployment.
 The systemd unit PATH must keep `~/.opencode/bin` and `~/.local/bin` so production providers stay on PATH after CI recopies the unit.

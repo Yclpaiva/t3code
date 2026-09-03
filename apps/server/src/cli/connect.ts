@@ -4,7 +4,11 @@ import {
   type RelayClientInstallProgressEvent,
   type RelayClientInstallProgressStage,
 } from "@t3tools/contracts";
-import { RelayOkResponse } from "@t3tools/contracts/relay";
+import {
+  type RelayClientEnvironmentRecord,
+  RelayListEnvironmentsResponse,
+  RelayOkResponse,
+} from "@t3tools/contracts/relay";
 import * as RelayClient from "@t3tools/shared/relayClient";
 import { withRelayClientTracing } from "@t3tools/shared/relayTracing";
 import * as Cause from "effect/Cause";
@@ -178,6 +182,27 @@ function formatRelayClientStatus(executable: RelayClient.RelayClientStatus): Rea
         `    Managed version: ${executable.version}`,
       ];
   }
+}
+
+export function formatCloudEnvironments(
+  environments: ReadonlyArray<RelayClientEnvironmentRecord>,
+  options?: { readonly json?: boolean },
+): string {
+  if (options?.json) {
+    return JSON.stringify({ environments }, null, 2);
+  }
+  if (environments.length === 0) {
+    return "No T3 Connect environments are linked.";
+  }
+  return [
+    "T3 Connect environments",
+    "",
+    ...environments.flatMap((environment) => [
+      `  ${environment.label}`,
+      `    ID: ${environment.environmentId}`,
+      `    Endpoint: ${environment.endpoint.httpBaseUrl}`,
+    ]),
+  ].join("\n");
 }
 
 function formatCloudStatus(status: CloudCliStatus, options?: { readonly json?: boolean }): string {
@@ -583,6 +608,43 @@ const connectStatusCommand = Command.make("status", {
   ),
 );
 
+const connectEnvironmentsCommand = Command.make("environments", {
+  ...projectLocationFlags,
+  json: jsonFlag,
+}).pipe(
+  Command.withDescription("List environments linked to the current T3 Connect account."),
+  Command.withHandler((flags) =>
+    runCloudCommand(
+      flags,
+      Effect.gen(function* () {
+        const tokens = yield* CliTokenManager.CloudCliTokenManager;
+        const token = yield* tokens.getExisting;
+        if (Option.isNone(token)) {
+          yield* Console.log(
+            flags.json
+              ? formatCloudEnvironments([], { json: true })
+              : "T3 Connect is not authenticated. Run `t3 connect login` first.",
+          );
+          return;
+        }
+        const relayUrl = yield* relayUrlConfig;
+        const httpClient = yield* HttpClient.HttpClient;
+        const response = yield* HttpClientRequest.get(`${relayUrl}/v1/environments`).pipe(
+          HttpClientRequest.bearerToken(token.value.accessToken),
+          httpClient.execute,
+          Effect.flatMap(HttpClientResponse.filterStatusOk),
+          Effect.flatMap(HttpClientResponse.schemaBodyJson(RelayListEnvironmentsResponse)),
+          withRelayClientTracing,
+        );
+        yield* Console.log(formatCloudEnvironments(response.environments, { json: flags.json }));
+      }),
+      {
+        quietLogs: flags.json,
+      },
+    ),
+  ),
+);
+
 const connectPublishCommand = Command.make("publish", {
   ...projectLocationFlags,
   disable: Flag.boolean("disable").pipe(
@@ -711,6 +773,7 @@ export const connectCommand = Command.make("connect", {
     connectLinkCommand,
     connectPublishCommand,
     connectStatusCommand,
+    connectEnvironmentsCommand,
     connectUnlinkCommand,
     connectLogoutCommand,
   ]),
